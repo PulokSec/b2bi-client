@@ -19,7 +19,7 @@ export default function Header() {
 
   return (
     <header className="border-b">
-      <div className="container flex h-16 items-center justify-between mx-auto">
+      <div className="container flex h-16 items-center justify-between mx-auto px-5 md:sticky fixed top-0 bg-white z-50">
         <div className="flex items-center gap-2">
           <Link href="/dashboard">
             <Image src="/logo.png" alt="B2Bi Logo" width={100} height={40} priority />

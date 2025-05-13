@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Input } from "@/components/ui/input"
@@ -19,15 +19,22 @@ interface LeadsTableProps {
 export default function LeadsTable({ queries }: LeadsTableProps) {
   const searchParams = useSearchParams()
   const initialQueryId = searchParams.get("query")
-
+const leadsContainerRef = useRef<HTMLDivElement>(null)
   const [selectedQueryId, setSelectedQueryId] = useState<string | null>(
-    initialQueryId || (queries.length > 0 ? (queries[0]._id || queries[0].id || null) : null),
-  )
+  initialQueryId || (queries.length > 0 ? (queries[queries.length - 1]._id || queries[queries.length - 1].id || null) : null)
+);
+
   const [selectedQuery, setSelectedQuery] = useState<SearchQuery | null>(null)
   const [searchFilter, setSearchFilter] = useState("")
   const [businesses, setBusinesses] = useState<Business[]>([])
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
+
+  useEffect(() => {
+  if (selectedQueryId && leadsContainerRef.current) {
+    leadsContainerRef.current.scrollIntoView({ behavior: "smooth" })
+  }
+}, [selectedQueryId])
 
   useEffect(() => {
     if (initialQueryId) {
@@ -94,7 +101,7 @@ export default function LeadsTable({ queries }: LeadsTableProps) {
           <div className="p-3 bg-blue-50 border-b border-blue-100">
             <h3 className="font-medium text-blue-800">Search Queries</h3>
           </div>
-          <div className="flex flex-col">
+          <div ref={leadsContainerRef}  className="flex flex-col mt-5 overflow-y-scroll h-[70vh]">
   {queries
     .slice() // Create a copy to avoid mutating original array
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) // Descending sort
@@ -149,7 +156,7 @@ export default function LeadsTable({ queries }: LeadsTableProps) {
               <p className="text-gray-500 mt-2">Try adjusting your search or filters to find more results.</p>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-6 overflow-y-scroll h-[70vh]">
               {filteredBusinesses.map((business) => (
                 <Card key={business._id || business.id} className="overflow-hidden">
                   <CardHeader className="bg-gray-50 pb-4">

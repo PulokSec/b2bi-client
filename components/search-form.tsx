@@ -153,13 +153,15 @@ export default function SearchForm() {
       // Start the search process
       const response = await searchBusinesses(searchText)
 
+
       // Set processing state
       setIsProcessing(true)
-      setSearchId(response.id || null)
       setEstimatedTime(response.estimatedTime || 60) // Use API response or default to 60 seconds
 
       // Refresh recent queries
       const queries = await getSearchQueries()
+      const SearchQueryId = queries.find((query) => query.searchText === response?.query)?._id || null
+      setSearchId(SearchQueryId);
       const sortedQueries = queries
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 5)
@@ -174,7 +176,7 @@ export default function SearchForm() {
           title: "Search complete",
           description: `Results for "${searchText}" are ready to view`,
         })
-      }, 10000) // Simulate 10 seconds of processing
+      }, 2000) // Simulate 2 seconds of processing
     } catch (error) {
       toast({
         title: "Search failed",
@@ -232,7 +234,7 @@ export default function SearchForm() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="flex gap-4">
+      <form onSubmit={handleSubmit} className="flex gap-4 md:flex-row flex-col">
         <Input
           type="text"
           placeholder="e.g., Plumber in Regina"
@@ -289,7 +291,7 @@ export default function SearchForm() {
               </div>
               <Progress value={progress} className="h-2" />
               <p className="text-sm text-muted-foreground">
-                We're searching for businesses and enriching the data. This may take a minute.
+                We're searching for businesses and enriching the data. This may take some time.
               </p>
             </div>
           </CardContent>
@@ -297,11 +299,23 @@ export default function SearchForm() {
       )}
 
       {progress === 100 && !isProcessing && (
-        <div className="flex justify-center mt-6">
+        <Card className="mt-10">
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-center">
+                <h3 className="font-medium text-center">Processing Completed For "{searchText}"</h3>
+              </div>
+              <p className="text-sm text-muted-foreground text-center">
+                Please check your results. You can view the details of your search in the "My Leads" section.
+              </p>
+            <div className="flex justify-center mt-6">
           <Button onClick={handleViewResults} className="bg-green-600 hover:bg-green-700 text-white">
             View Results
           </Button>
         </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Pending Searches Section */}

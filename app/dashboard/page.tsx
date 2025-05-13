@@ -16,7 +16,7 @@ export default async function Dashboard() {
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
-      <div className="flex-1 flex flex-col items-center py-12 px-4">
+      <div className="flex-1 flex flex-col items-center py-12 px-4 mt-10">
         <div className="w-full max-w-4xl">
           <h1 className="text-3xl font-bold text-center text-blue-600 mb-6">Generate Fresh B2B Leads</h1>
           <p className="text-center mb-8">Enter a keyword to discover new business opportunities</p>

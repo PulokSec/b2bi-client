@@ -2,9 +2,9 @@
 
 import type { Business, SearchQuery } from "@/lib/types"
 
-const API_URL = "https://b2bi-server.vercel.app/api/b2bi"
+const API_URL = process.env.API_URL
 
-export async function searchBusinesses(searchText: string, count = 5) {
+export async function searchBusinesses(searchText: string, count?: number) {
   try {
     const response = await fetch(`${API_URL}/search`, {
       method: "POST",
