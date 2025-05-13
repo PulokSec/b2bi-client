@@ -279,7 +279,11 @@ export default function LeadsTable({ queries }: LeadsTableProps) {
                         </div>
                       </div>
                     )}
+                    <div className="mt-6 pt-6 border-t">
+                      <h3 className="font-medium text-gray-900 mb-3">Strategical Score</h3> 
+                      <p className="font-medium text-gray-900 mb-3">{business?.score?.generalParameters} %</p> 
 
+                    </div>
                     <div className="mt-6 flex justify-end">
                       <Link href={`/business/${business._id || business.id}`}>
                         <Button variant="outline" size="sm" className="text-blue-600 border-blue-200 flex items-center">

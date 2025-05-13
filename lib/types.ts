@@ -19,6 +19,10 @@ export interface Business {
   primaryType?: string
   emails?: string[]
   linkedIn?: string
+  score?: {
+    generalParameters?: number
+    marketingParameters?: number
+  }
   gptInsights?: {
     company?: {
       name?: string
