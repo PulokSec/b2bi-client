@@ -95,19 +95,22 @@ export default function LeadsTable({ queries }: LeadsTableProps) {
             <h3 className="font-medium text-blue-800">Search Queries</h3>
           </div>
           <div className="flex flex-col">
-            {queries.map((query) => (
-              <button
-                key={query._id || query.id}
-                className={`p-4 text-left hover:bg-blue-50 transition-colors ${
-                  selectedQueryId === (query._id || query.id) ? "bg-blue-100 border-l-4 border-blue-600" : ""
-                }`}
-                onClick={() => setSelectedQueryId(query._id || query.id || null)}
-              >
-                <div className="font-medium">{query.searchText}</div>
-                <div className="text-xs text-gray-500 mt-1">{new Date(query.createdAt).toLocaleDateString()}</div>
-              </button>
-            ))}
-          </div>
+  {queries
+    .slice() // Create a copy to avoid mutating original array
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) // Descending sort
+    .map((query) => (
+      <button
+        key={query._id || query.id}
+        className={`p-4 text-left hover:bg-blue-50 transition-colors ${
+          selectedQueryId === (query._id || query.id) ? "bg-blue-100 border-l-4 border-blue-600" : ""
+        }`}
+        onClick={() => setSelectedQueryId(query._id || query.id || null)}
+      >
+        <div className="font-medium">{query.searchText}</div>
+        <div className="text-xs text-gray-500 mt-1">{new Date(query.createdAt).toLocaleDateString()}</div>
+      </button>
+    ))}
+</div>
         </div>
 
         {/* Main content with leads table */}
@@ -281,7 +284,7 @@ export default function LeadsTable({ queries }: LeadsTableProps) {
                     )}
                     <div className="mt-6 pt-6 border-t">
                       <h3 className="font-medium text-gray-900 mb-3">Strategical Score</h3> 
-                      <p className="font-medium text-gray-900 mb-3">{business?.score?.generalParameters} %</p> 
+                      <p className="font-medium text-gray-900 mb-3">{business?.score?.generalParameters || 0} %</p> 
 
                     </div>
                     <div className="mt-6 flex justify-end">

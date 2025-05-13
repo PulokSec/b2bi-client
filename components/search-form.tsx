@@ -1,55 +1,81 @@
 "use client"
 
 import type React from "react"
+
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
-import { searchBusinesses } from "@/lib/api"
+import { searchBusinesses, getSearchQueries } from "@/lib/api"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Loader2, WifiOff, CheckCircle2 } from "lucide-react"
-import {
-  useOnlineStatus,
-  usePendingSearches,
-  savePendingSearch,
-  processPendingSearches,
-} from "@/lib/offline-utils"
+import { Loader2, WifiOff, CheckCircle2, Search, History } from "lucide-react"
+import { useOnlineStatus, usePendingSearches, savePendingSearch, processPendingSearches } from "@/lib/offline-utils"
+import type { SearchQuery } from "@/lib/types"
 
 export default function SearchForm() {
   const [searchText, setSearchText] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [estimatedTime, setEstimatedTime] = useState(60)
+  const [estimatedTime, setEstimatedTime] = useState(60) // Default 60 seconds
   const [searchId, setSearchId] = useState<string | null>(null)
-
+  const [recentQueries, setRecentQueries] = useState<SearchQuery[]>([])
+  const [isLoadingQueries, setIsLoadingQueries] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
   const isOnline = useOnlineStatus()
   const pendingSearches = usePendingSearches()
 
-  // Simulate progress
+  // Fetch recent queries
+  useEffect(() => {
+    const fetchRecentQueries = async () => {
+      if (!isOnline) return
+
+      setIsLoadingQueries(true)
+      try {
+        const queries = await getSearchQueries()
+        // Sort by date (newest first) and take the 5 most recent
+        const sortedQueries = queries
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .slice(0, 5)
+        setRecentQueries(sortedQueries)
+      } catch (error) {
+        console.error("Failed to fetch recent queries:", error)
+      } finally {
+        setIsLoadingQueries(false)
+      }
+    }
+
+    fetchRecentQueries()
+  }, [isOnline])
+
+  // Simulate progress when processing
   useEffect(() => {
     let interval: NodeJS.Timeout
-    let startTime: number
 
     if (isProcessing) {
-      startTime = Date.now()
-      const totalTime = estimatedTime * 1000
+      const startTime = Date.now()
+      const totalTime = estimatedTime * 1000 // convert to ms
 
       interval = setInterval(() => {
         const elapsed = Date.now() - startTime
-        const percent = Math.min(Math.floor((elapsed / totalTime) * 100), 99)
-        setProgress(percent)
+        const newProgress = Math.min(Math.floor((elapsed / totalTime) * 100), 99)
 
-        if (percent >= 99) {
+        setProgress(newProgress)
+
+        // If we're at 99%, we'll wait for the actual completion
+        if (newProgress >= 99) {
           clearInterval(interval)
+
+          // Simulate completion after a short delay if not already completed
           setTimeout(() => {
-            setIsProcessing(false)
-            setProgress(100)
-          }, 1000)
+            if (isProcessing) {
+              setIsProcessing(false)
+              setProgress(100)
+            }
+          }, 3000)
         }
       }, 500)
     }
@@ -59,16 +85,16 @@ export default function SearchForm() {
     }
   }, [isProcessing, estimatedTime])
 
-  // Reprocess saved searches when back online
+  // Process pending searches when coming back online
   useEffect(() => {
-    if (isOnline && pendingSearches.some((s: any) => s.status === "pending")) {
+    if (isOnline && pendingSearches.some((search) => search.status === "pending")) {
       const processSearches = async () => {
         toast({
           title: "Processing pending searches",
           description: "Your saved searches are being processed now that you're online",
         })
 
-        await processPendingSearches(async (searchText: any) => {
+        await processPendingSearches(async (searchText) => {
           toast({
             title: "Processing search",
             description: `Processing "${searchText}" in background...`,
@@ -103,6 +129,7 @@ export default function SearchForm() {
 
     setIsLoading(true)
 
+    // If offline, save the search for later processing
     if (!isOnline) {
       const id = savePendingSearch(searchText)
       setSearchId(id)
@@ -123,18 +150,31 @@ export default function SearchForm() {
         description: `Searching for "${searchText}"...`,
       })
 
-      const start = performance.now()
+      // Start the search process
       const response = await searchBusinesses(searchText)
-      const end = performance.now()
 
-      const apiDelay = Math.ceil((end - start) / 1000) || 10
-      const bufferTime = 5
-      const totalEstimate = apiDelay + bufferTime
-
+      // Set processing state
       setIsProcessing(true)
-      setEstimatedTime(totalEstimate)
-      setProgress(0)
       setSearchId(response.id || null)
+      setEstimatedTime(response.estimatedTime || 60) // Use API response or default to 60 seconds
+
+      // Refresh recent queries
+      const queries = await getSearchQueries()
+      const sortedQueries = queries
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 5)
+      setRecentQueries(sortedQueries)
+
+      // After a simulated delay (in a real app, you'd poll the API for status)
+      setTimeout(() => {
+        setIsProcessing(false)
+        setProgress(100)
+
+        toast({
+          title: "Search complete",
+          description: `Results for "${searchText}" are ready to view`,
+        })
+      }, 10000) // Simulate 10 seconds of processing
     } catch (error) {
       toast({
         title: "Search failed",
@@ -148,8 +188,36 @@ export default function SearchForm() {
     }
   }
 
+  const handleRecentQueryClick = async (query: SearchQuery) => {
+    if (isLoading || isProcessing) return
+
+    setSearchText(query.searchText)
+
+    // Option 1: Auto-submit the form with the selected query
+    // handleSubmit(new Event('submit') as any);
+
+    // Option 2: Just navigate to the results
+    router.push(`/my-leads?query=${query._id || query.id}`)
+  }
+
   const handleViewResults = () => {
     router.push(`/my-leads${searchId ? `?query=${searchId}` : ""}`)
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMins / 60)
+    const diffDays = Math.floor(diffHours / 24)
+
+    if (diffMins < 1) return "Just now"
+    if (diffMins < 60) return `${diffMins} min ago`
+    if (diffHours < 24) return `${diffHours} hr ago`
+    if (diffDays < 7) return `${diffDays} day ago`
+
+    return date.toLocaleDateString()
   }
 
   return (
@@ -185,6 +253,30 @@ export default function SearchForm() {
         </Button>
       </form>
 
+      {/* Recent Searches */}
+      {recentQueries.length > 0 && (
+        <div className="mt-4">
+          <div className="flex items-center mb-2 text-sm text-gray-500">
+            <History className="h-4 w-4 mr-1" />
+            <span>Recent Searches</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {recentQueries.map((query) => (
+              <button
+                key={query._id || query.id}
+                onClick={() => handleRecentQueryClick(query)}
+                disabled={isLoading || isProcessing}
+                className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-sm transition-colors"
+              >
+                <Search className="h-3.5 w-3.5 text-gray-500" />
+                <span className="truncate max-w-[150px]">{query.searchText}</span>
+                <span className="text-xs text-gray-500">{formatDate(query.createdAt)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {isProcessing && (
         <Card className="mt-6">
           <CardContent className="pt-6">
@@ -192,7 +284,7 @@ export default function SearchForm() {
               <div className="flex justify-between items-center">
                 <h3 className="font-medium">Processing "{searchText}"</h3>
                 <span className="text-sm text-muted-foreground">
-                  {Math.max(1, Math.floor(estimatedTime - (estimatedTime * progress) / 100))} seconds remaining
+                  {Math.floor(estimatedTime - (estimatedTime * progress) / 100 + 1)} seconds remaining
                 </span>
               </div>
               <Progress value={progress} className="h-2" />
@@ -212,11 +304,12 @@ export default function SearchForm() {
         </div>
       )}
 
+      {/* Pending Searches Section */}
       {pendingSearches.length > 0 && (
         <div className="mt-8">
           <h3 className="text-lg font-medium mb-4">Pending Searches</h3>
           <div className="space-y-3">
-            {pendingSearches.map((search: any) => (
+            {pendingSearches.map((search) => (
               <Card key={search.id} className="bg-gray-50">
                 <CardContent className="p-4">
                   <div className="flex justify-between items-center">

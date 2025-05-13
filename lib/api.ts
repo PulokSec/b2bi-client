@@ -2,7 +2,7 @@
 
 import type { Business, SearchQuery } from "@/lib/types"
 
-const API_URL = process.env.API_URL
+const API_URL = "https://b2bi-server.vercel.app/api/b2bi"
 
 export async function searchBusinesses(searchText: string, count = 5) {
   try {
