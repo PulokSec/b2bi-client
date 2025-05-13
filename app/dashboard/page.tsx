@@ -4,6 +4,7 @@ import Header from "@/components/header"
 import SearchForm from "@/components/search-form"
 import ProcessingStatus from "@/components/processing-status"
 import OfflineIndicator from "@/components/offline-indicator"
+export const dynamic = "force-dynamic"
 
 export default async function Dashboard() {
   const session = await getSession()

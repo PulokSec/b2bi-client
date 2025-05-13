@@ -5,6 +5,9 @@ import Header from "@/components/header"
 import BusinessDetails from "@/components/business-details"
 import OfflineIndicator from "@/components/offline-indicator"
 
+// Add dynamic directive to prevent static rendering
+export const dynamic = "force-dynamic"
+
 export default async function BusinessPage({ params }: { params: { id: string } }) {
   const session = await getSession()
 

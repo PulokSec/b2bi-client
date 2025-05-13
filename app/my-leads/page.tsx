@@ -5,6 +5,9 @@ import LeadsTable from "@/components/leads-table"
 import OfflineIndicator from "@/components/offline-indicator"
 import { getSearchQueries } from "@/lib/api"
 
+// Add dynamic directive to prevent static rendering
+export const dynamic = "force-dynamic"
+
 export default async function MyLeads() {
   const session = await getSession()
 

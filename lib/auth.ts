@@ -9,14 +9,13 @@ export async function login(username: string, password: string) {
 
     if (username === validUsername && password === validPassword) {
       // Set a session cookie
-      const cookieStore = await cookies();
-      cookieStore.set("session", "authenticated", {
+      (await cookies()).set("session", "authenticated", {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         maxAge: 60 * 60 * 24, // 1 day
         path: "/",
         sameSite: "lax",
-      });
+      })
       return true
     }
 
@@ -29,8 +28,7 @@ export async function login(username: string, password: string) {
 
 export async function logout() {
   try {
-    const cookieStore = await cookies()
-    cookieStore.delete("session")
+    (await cookies()).delete("session")
   } catch (error) {
     console.error("Logout error:", error)
   }
@@ -38,8 +36,7 @@ export async function logout() {
 
 export async function getSession() {
   try {
-    const cookieStore = await cookies()
-    const session = cookieStore.get("session")
+    const session = (await cookies()).get("session")
     return session?.value === "authenticated" ? session : null
   } catch (error) {
     console.error("Get session error:", error)
