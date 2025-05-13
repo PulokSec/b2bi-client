@@ -57,7 +57,6 @@ export default function BusinessDetails({ business }: BusinessDetailsProps) {
       .toUpperCase()
       .substring(0, 2)
   }
-  console.log(business?.gptInsights)
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-6">
