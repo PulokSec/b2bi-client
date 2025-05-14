@@ -1,7 +1,8 @@
+/* Optimized SearchForm Component */
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,13 +14,20 @@ import { Loader2, WifiOff, CheckCircle2, Search, History } from "lucide-react"
 import { useOnlineStatus, usePendingSearches, savePendingSearch, processPendingSearches } from "@/lib/offline-utils"
 import type { SearchQuery } from "@/lib/types"
 
+const STAGES = [
+  "Gathering business information...",
+  "Extracting key data from sources...",
+  "Analyzing with insights using AI...",
+  "Finalizing your results...",
+]
+
 export default function SearchForm() {
   const [searchText, setSearchText] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [progressMessage, setProgressMessage] = useState("Processing...")
-  const [estimatedTime, setEstimatedTime] = useState(900) // 15 minutes max default
+  const [estimatedTime, setEstimatedTime] = useState(900)
   const [searchId, setSearchId] = useState<string | null>(null)
   const [recentQueries, setRecentQueries] = useState<SearchQuery[]>([])
   const [isLoadingQueries, setIsLoadingQueries] = useState(false)
@@ -30,81 +38,65 @@ export default function SearchForm() {
   const isOnline = useOnlineStatus()
   const pendingSearches = usePendingSearches()
 
-  const processingStages = [
-    "Gathering business information...",
-    "Extracting key data from sources...",
-    "Analyzing with insights using AI...",
-    "Finalizing your results...",
-  ]
-
   useEffect(() => {
+    if (!isOnline) return
+
     const fetchRecentQueries = async () => {
-      if (!isOnline) return
       setIsLoadingQueries(true)
       try {
         const queries = await getSearchQueries()
-        const sortedQueries = queries
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-          .slice(0, 5)
-        setRecentQueries(sortedQueries)
+        setRecentQueries(
+          queries
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 5)
+        )
       } catch (error) {
         console.error("Failed to fetch recent queries:", error)
       } finally {
         setIsLoadingQueries(false)
       }
     }
+
     fetchRecentQueries()
   }, [isOnline])
 
   useEffect(() => {
     if (!isProcessing) return
 
-    const stageCount = processingStages.length
-    const totalTime = estimatedTime
-    const stageDuration = totalTime / stageCount // seconds per stage
+    const stageCount = STAGES.length
+    const stageDuration = estimatedTime / stageCount
     const startTime = Date.now()
 
     const interval = setInterval(() => {
-      const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000)
-      const currentStageIndex = Math.min(Math.floor(elapsedSeconds / stageDuration), stageCount - 1)
-      const newProgress = Math.min(Math.floor((elapsedSeconds / totalTime) * 100), 99)
-
-      setCurrentStage(currentStageIndex)
-      setProgress(newProgress)
-      setProgressMessage(processingStages[currentStageIndex])
+      const elapsed = (Date.now() - startTime) / 1000
+      const newStage = Math.min(Math.floor(elapsed / stageDuration), stageCount - 1)
+      setCurrentStage(newStage)
+      setProgress(Math.min(Math.floor((elapsed / estimatedTime) * 100), 99))
+      setProgressMessage(STAGES[newStage])
     }, 1000)
 
     return () => clearInterval(interval)
   }, [isProcessing, estimatedTime])
 
   useEffect(() => {
-    if (isOnline && pendingSearches.some((s) => s.status === "pending")) {
-      const processSearches = async () => {
-        toast({
-          title: "Processing pending searches",
-          description: "Your saved searches are being processed now that you're online",
-        })
+    if (!isOnline || !pendingSearches.some(s => s.status === "pending")) return
 
-        await processPendingSearches(async (searchText) => {
-          toast({ title: "Processing search", description: `Processing "${searchText}"...` })
-          await searchBusinesses(searchText)
-          toast({ title: "Search complete", description: `Results for "${searchText}" are ready to view` })
-        })
-      }
-
-      processSearches()
+    const run = async () => {
+      toast({ title: "Processing pending searches", description: "Saved searches are processing now" })
+      await processPendingSearches(async (text) => {
+        toast({ title: "Processing", description: `Processing '${text}'...` })
+        await searchBusinesses(text)
+        toast({ title: "Done", description: `Results for '${text}' ready.` })
+      })
     }
+
+    run()
   }, [isOnline, pendingSearches, toast])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     if (!searchText.trim()) {
-      toast({
-        title: "Search field is empty",
-        description: "Please enter a keyword to search for businesses",
-        variant: "destructive",
-      })
+      toast({ title: "Search field is empty", description: "Enter a keyword", variant: "destructive" })
       return
     }
 
@@ -118,10 +110,7 @@ export default function SearchForm() {
     if (!isOnline) {
       const id = savePendingSearch(searchText)
       setSearchId(id)
-      toast({
-        title: "You're offline",
-        description: "Your search has been saved and will be processed when you're back online",
-      })
+      toast({ title: "You're offline", description: "Search saved for later" })
       setIsLoading(false)
       setIsProcessing(false)
       setSearchText("")
@@ -131,64 +120,40 @@ export default function SearchForm() {
     try {
       const response = await searchBusinesses(searchText)
       setEstimatedTime(response.estimatedTime || 900)
-
       const queries = await getSearchQueries()
-      const queryId = queries.find((q) => q.searchText === response.query)?._id || null
-      setSearchId(queryId)
-
-      const sortedQueries = queries
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 5)
-      setRecentQueries(sortedQueries)
-
+      setSearchId(queries.find(q => q.searchText === response.query)?._id || null)
+      setRecentQueries(
+        queries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5)
+      )
       setProgress(100)
-      setIsProcessing(false)
-      toast({
-        title: "Search complete",
-        description: `Results for "${searchText}" are ready to view`,
-      })
-    } catch (error) {
-      toast({
-        title: "Search failed",
-        description: "An error occurred while processing your search",
-        variant: "destructive",
-      })
-      setIsProcessing(false)
+      toast({ title: "Search complete", description: `Results for "${searchText}" ready.` })
+    } catch {
+      toast({ title: "Search failed", description: "Error occurred", variant: "destructive" })
     } finally {
       setIsLoading(false)
+      setIsProcessing(false)
     }
   }
 
-  const handleViewResults = () => {
-    router.push(`/my-leads${searchId ? `?query=${searchId}` : ""}`)
-  }
-
-  const handleRecentQueryClick = (query: SearchQuery) => {
-    if (isLoading || isProcessing) return
-    setSearchText(query.searchText)
-    router.push(`/my-leads?query=${query._id || query.id}`)
-  }
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
+  const formatDate = useCallback((date: string) => {
+    const d = new Date(date)
     const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-    const diffHours = Math.floor(diffMins / 60)
-    const diffDays = Math.floor(diffHours / 24)
-    if (diffMins < 1) return "Just now"
-    if (diffMins < 60) return `${diffMins} min ago`
-    if (diffHours < 24) return `${diffHours} hr ago`
-    if (diffDays < 7) return `${diffDays} day ago`
-    return date.toLocaleDateString()
-  }
+    const diffMs = now.getTime() - d.getTime()
+    const mins = Math.floor(diffMs / 60000)
+    if (mins < 1) return "Just now"
+    if (mins < 60) return `${mins} min ago`
+    const hrs = Math.floor(mins / 60)
+    if (hrs < 24) return `${hrs} hr ago`
+    const days = Math.floor(hrs / 24)
+    return days < 7 ? `${days} day ago` : d.toLocaleDateString()
+  }, [])
 
-  const formatRemainingTime = (totalSeconds: number) => {
-    const hours = Math.floor(totalSeconds / 3600)
-    const minutes = Math.floor((totalSeconds % 3600) / 60)
-    const seconds = totalSeconds % 60
-    return `${hours}h ${minutes}m ${seconds}s`
-  }
+  const formatRemainingTime = useCallback((seconds: number) => {
+    const h = Math.floor(seconds / 3600)
+    const m = Math.floor((seconds % 3600) / 60)
+    const s = seconds % 60
+    return `${h}h ${m}m ${s}s`
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -212,14 +177,7 @@ export default function SearchForm() {
           disabled={isLoading || isProcessing}
         />
         <Button type="submit" disabled={isLoading || isProcessing} className="bg-blue-600 hover:bg-blue-700 text-white">
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Processing...
-            </>
-          ) : (
-            "Get me fresh leads"
-          )}
+          {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</> : "Get me fresh leads"}
         </Button>
       </form>
 
@@ -230,16 +188,16 @@ export default function SearchForm() {
             <span>Recent Searches</span>
           </div>
           <div className="flex flex-wrap gap-2">
-            {recentQueries.map((query) => (
+            {recentQueries.map((q) => (
               <button
-                key={query._id || query.id}
-                onClick={() => handleRecentQueryClick(query)}
+                key={q._id || q.id}
+                onClick={() => router.push(`/my-leads?query=${q._id || q.id}`)}
                 disabled={isLoading || isProcessing}
                 className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-sm transition-colors"
               >
                 <Search className="h-3.5 w-3.5 text-gray-500" />
-                <span className="truncate max-w-[150px]">{query.searchText}</span>
-                <span className="text-xs text-gray-500">{formatDate(query.createdAt)}</span>
+                <span className="truncate max-w-[150px]">{q.searchText}</span>
+                <span className="text-xs text-gray-500">{formatDate(q.createdAt)}</span>
               </button>
             ))}
           </div>
@@ -258,7 +216,7 @@ export default function SearchForm() {
               </div>
               <Progress value={progress} className="h-2" />
               <p className="text-sm text-muted-foreground">
-                Step {currentStage + 1} of {processingStages.length}: {progressMessage}
+                Step {currentStage + 1} of {STAGES.length}: {progressMessage}
               </p>
             </div>
           </CardContent>
@@ -274,7 +232,7 @@ export default function SearchForm() {
                 You can now view your search results in the "My Leads" section.
               </p>
               <div className="flex justify-center mt-6">
-                <Button onClick={handleViewResults} className="bg-green-600 hover:bg-green-700 text-white">
+                <Button onClick={() => router.push(`/my-leads${searchId ? `?query=${searchId}` : ""}`)} className="bg-green-600 hover:bg-green-700 text-white">
                   View Results
                 </Button>
               </div>
