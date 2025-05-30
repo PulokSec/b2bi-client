@@ -92,6 +92,7 @@ const leadsContainerRef = useRef<HTMLDivElement>(null)
 
     return matchesSearch
   })
+  console.log(businesses);
 
   return (
     <div className="w-full">
@@ -162,7 +163,7 @@ const leadsContainerRef = useRef<HTMLDivElement>(null)
                   <CardHeader className="bg-gray-50 pb-4">
                     <div className="flex justify-between items-start">
                       <div>
-                        <CardTitle className="text-xl">{business.name}</CardTitle>
+                        <CardTitle className="text-xl">{business?.displayName?.text}</CardTitle>
                         <CardDescription className="flex items-center mt-1">
                           <MapPin className="h-4 w-4 mr-1" />
                           {business.formattedAddress}

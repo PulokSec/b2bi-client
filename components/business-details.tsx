@@ -67,7 +67,7 @@ export default function BusinessDetails({ business }: BusinessDetailsProps) {
 
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">{business.name}</h1>
+            <h1 className="text-3xl font-bold text-gray-900">{business?.displayName?.text}</h1>
             <div className="flex items-center mt-2 text-gray-500">
               <MapPin className="h-4 w-4 mr-1" />
               <span>{business.formattedAddress || "No address available"}</span>

@@ -1,8 +1,8 @@
 "use server"
 
-import type { Business, SearchQuery } from "@/lib/types"
+import type { Business, BusinessType, SearchQuery } from "@/lib/types"
 
-const API_URL = process.env.API_URL
+const API_URL = 'https://b2bi-server.onrender.com/api/b2bi';
 
 export async function searchBusinesses(searchText: string, count?: number) {
   try {
@@ -126,5 +126,77 @@ export async function getBusinessesByQuery(queryId: string): Promise<Business[]>
   } catch (error) {
     console.error(`Error fetching businesses for query:`, error)
     return []
+  }
+}
+
+
+// Business Types APIs
+export async function getBusinessTypes(): Promise<BusinessType[]> {
+  try {
+    const response = await fetch(`${API_URL}/businesstype/admin/businesstypes`)
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data.businessTypes || []
+  } catch (error) {
+    console.error("Error fetching business types:", error)
+    return []
+  }
+}
+
+export async function getBusinessTypeById(id: string): Promise<BusinessType | null> {
+  try {
+    const response = await fetch(`${API_URL}/businesstype/admin/businesstypes/${id}`)
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`)
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error(`Error fetching business type ${id}:`, error)
+    return null
+  }
+}
+
+export async function createBusinessType(data: Partial<BusinessType>) {
+  try {
+    const response = await fetch(`${API_URL}/businesstype/admin/businesstypes`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Error creating business type:", error)
+    throw error
+  }
+}
+
+export async function updateBusinessType(id: string, data: Partial<BusinessType>) {
+  try {
+    const response = await fetch(`${API_URL}/businesstype/admin/businesstypes/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    })
+    console.log(response);
+    return await response.json()
+  } catch (error) {
+    console.error("Error updating business type:", error)
+    throw error
+  }
+}
+
+export async function deleteBusinessType(id: string) {
+  try {
+    const response = await fetch(`${API_URL}/businesstype/admin/businesstypes/${id}`, {
+      method: "DELETE",
+    })
+    return true
+  } catch (error) {
+    console.error("Error deleting business type:", error)
+    throw error
   }
 }

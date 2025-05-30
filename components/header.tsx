@@ -30,6 +30,9 @@ export default function Header() {
           <Link href="/dashboard" className="text-sm font-medium transition-colors hover:text-primary">
             Home
           </Link>
+          <Link href="/configure-leads" className="text-sm font-medium transition-colors hover:text-primary">
+            Configure Leads
+          </Link>
           <Link href="/my-leads" className="text-sm font-medium text-blue-600 transition-colors hover:text-blue-800">
             My Leads
           </Link>

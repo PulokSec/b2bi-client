@@ -116,3 +116,20 @@ export interface SearchQuery {
   status?: "processing" | "completed" | "failed"
   estimatedTimeRemaining?: number
 }
+export interface BusinessTypePrompt {
+  content: string
+  version?: number
+  model: "gpt-4" | "gpt-4o"
+  active?: boolean
+}
+
+export interface BusinessType {
+  _id: string
+  name: string
+  subcategories?: string[]
+  description?: string
+  prompt?: BusinessTypePrompt[]
+  defaultPrompts?: string[] // Keep for backward compatibility
+  createdAt: string
+  updatedAt: string
+}
