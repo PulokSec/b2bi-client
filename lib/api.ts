@@ -133,7 +133,7 @@ export async function getBusinessesByQuery(queryId: string): Promise<Business[]>
 // Business Types APIs
 export async function getBusinessTypes(): Promise<BusinessType[]> {
   try {
-    const response = await fetch(`${API_URL}/businesstype/admin/businesstypes`)
+    const response = await fetch(`${API_URL}/admin/businesstypes`)
 
     if (!response.ok) {
       throw new Error(`API error: ${response.status}`)
@@ -149,7 +149,7 @@ export async function getBusinessTypes(): Promise<BusinessType[]> {
 
 export async function getBusinessTypeById(id: string): Promise<BusinessType | null> {
   try {
-    const response = await fetch(`${API_URL}/businesstype/admin/businesstypes/${id}`)
+    const response = await fetch(`${API_URL}/admin/businesstypes/${id}`)
 
     if (!response.ok) {
       throw new Error(`API error: ${response.status}`)
@@ -164,10 +164,18 @@ export async function getBusinessTypeById(id: string): Promise<BusinessType | nu
 
 export async function createBusinessType(data: Partial<BusinessType>) {
   try {
-    const response = await fetch(`${API_URL}/businesstype/admin/businesstypes`, {
+    const response = await fetch(`${API_URL}/admin/businesstypes`, {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(data),
     })
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`)
+    }
+
     return await response.json()
   } catch (error) {
     console.error("Error creating business type:", error)
@@ -177,11 +185,18 @@ export async function createBusinessType(data: Partial<BusinessType>) {
 
 export async function updateBusinessType(id: string, data: Partial<BusinessType>) {
   try {
-    const response = await fetch(`${API_URL}/businesstype/admin/businesstypes/${id}`, {
+    const response = await fetch(`${API_URL}/admin/businesstypes/${id}`, {
       method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(data),
     })
-    console.log(response);
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`)
+    }
+
     return await response.json()
   } catch (error) {
     console.error("Error updating business type:", error)
@@ -191,9 +206,12 @@ export async function updateBusinessType(id: string, data: Partial<BusinessType>
 
 export async function deleteBusinessType(id: string) {
   try {
-    const response = await fetch(`${API_URL}/businesstype/admin/businesstypes/${id}`, {
+    const response = await fetch(`${API_URL}/admin/businesstypes/${id}`, {
       method: "DELETE",
     })
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`)
+    }
     return true
   } catch (error) {
     console.error("Error deleting business type:", error)

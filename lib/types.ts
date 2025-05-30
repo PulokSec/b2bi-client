@@ -129,7 +129,8 @@ export interface BusinessType {
   subcategories?: string[]
   description?: string
   prompt?: BusinessTypePrompt[]
-  defaultPrompts?: string[] // Keep for backward compatibility
+  defaultPrompts?: string[]
+  active: true // Keep for backward compatibility
   createdAt: string
   updatedAt: string
 }

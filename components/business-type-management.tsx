@@ -257,7 +257,7 @@ export default function BusinessTypeManagement({ initialBusinessTypes }: Busines
 
   const isFormMode = isEditing || isCreating
 
-  console.log(businessTypes);
+  console.log(businessTypes)
 
   return (
     <div className="flex gap-6 h-[calc(100vh-200px)]">
