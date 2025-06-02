@@ -7,6 +7,16 @@ export const dynamic = "force-dynamic"
 export default async function BusinessTypesPage() {
   const businessTypes = await getBusinessTypes()
 
+  // Ensure subcategories is always an array of Subcategory objects
+  const normalizedBusinessTypes = businessTypes.map((bt: any) => ({
+    ...bt,
+    subcategories: Array.isArray(bt.subcategories)
+      ? bt.subcategories.map((sub: any) =>
+          typeof sub === "string" ? { name: sub } : sub
+        )
+      : [],
+  }))
+
   return (
     <div className="">
       <Header />
@@ -18,7 +28,7 @@ export default async function BusinessTypesPage() {
         </div>
       </div>
 
-      <BusinessTypeManagement initialBusinessTypes={businessTypes} />
+      <BusinessTypeManagement initialBusinessTypes={normalizedBusinessTypes} />
     </div>
     </div>
   )

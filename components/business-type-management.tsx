@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,10 +13,31 @@ import { Separator } from "@/components/ui/separator"
 import { Plus, X, Save, Trash2, FileText, Settings, Loader2 } from "lucide-react"
 import { createBusinessType, updateBusinessType, deleteBusinessType } from "@/lib/api"
 import { useToast } from "@/components/ui/use-toast"
-import type { BusinessType, BusinessTypePrompt } from "@/lib/types"
+import type { BusinessTypePrompt } from "@/lib/types"
+
+// Ensure BusinessType has subcategories typed as Subcategory[]
+interface Subcategory {
+  name: string;
+  prompt: BusinessTypePrompt[];
+}
+
+interface BusinessType {
+  _id: string;
+  name: string;
+  description?: string;
+  subcategories: Subcategory[];
+  prompt: BusinessTypePrompt[];
+  createdAt?: string;
+}
+import { useRouter } from "next/navigation"
 
 interface BusinessTypeManagementProps {
   initialBusinessTypes: BusinessType[]
+}
+
+interface Subcategory {
+  name: string;
+  prompt: BusinessTypePrompt[];
 }
 
 export default function BusinessTypeManagement({ initialBusinessTypes }: BusinessTypeManagementProps) {
@@ -28,12 +49,21 @@ export default function BusinessTypeManagement({ initialBusinessTypes }: Busines
   const [isCreating, setIsCreating] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const router = useRouter()
 
-  // Form state
+  // Initialize form with safe defaults
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    subcategories: [""],
+    subcategories: [{
+      name: "",
+      prompt: [{
+        content: "",
+        version: 1,
+        model: "gpt-4o" as "gpt-4" | "gpt-4o",
+        active: true,
+      }]
+    }] as Subcategory[],
     prompt: [
       {
         content: "",
@@ -46,15 +76,29 @@ export default function BusinessTypeManagement({ initialBusinessTypes }: Busines
 
   const { toast } = useToast()
 
-  // Update form data when selected type changes
-  useEffect(() => {
-    if (selectedType && !isEditing && !isCreating) {
+  // Reset form to selected business type
+  const resetForm = useCallback(() => {
+    if (selectedType) {
       setFormData({
-        name: selectedType.name,
+        name: selectedType.name || "",
         description: selectedType.description || "",
-        subcategories: selectedType.subcategories?.length ? selectedType.subcategories : [""],
+        subcategories: selectedType.subcategories?.length 
+          ? selectedType.subcategories.map(sc => 
+              typeof sc === "string"
+                ? { name: sc, prompt: [{ content: "", version: 1, model: "gpt-4o", active: true }] }
+                : {
+                    name: sc.name,
+                    prompt: sc.prompt?.length ? [...sc.prompt] : [{
+                      content: "",
+                      version: 1,
+                      model: "gpt-4o",
+                      active: true,
+                    }]
+                  }
+            )
+          : [{ name: "", prompt: [{ content: "", version: 1, model: "gpt-4o", active: true }] }],
         prompt: selectedType.prompt?.length
-          ? selectedType.prompt
+          ? [...selectedType.prompt]
           : [
               {
                 content: "",
@@ -65,7 +109,12 @@ export default function BusinessTypeManagement({ initialBusinessTypes }: Busines
             ],
       })
     }
-  }, [selectedType, isEditing, isCreating])
+  }, [selectedType])
+
+  // Initialize form
+  useEffect(() => {
+    resetForm()
+  }, [resetForm])
 
   const handleCreateNew = () => {
     setIsCreating(true)
@@ -74,7 +123,15 @@ export default function BusinessTypeManagement({ initialBusinessTypes }: Busines
     setFormData({
       name: "",
       description: "",
-      subcategories: [""],
+      subcategories: [{
+        name: "",
+        prompt: [{
+          content: "",
+          version: 1,
+          model: "gpt-4o",
+          active: true,
+        }]
+      }],
       prompt: [
         {
           content: "",
@@ -86,6 +143,11 @@ export default function BusinessTypeManagement({ initialBusinessTypes }: Busines
     })
   }
 
+  const handleSelectType = (type: BusinessType) => {
+    if (isEditing || isCreating) return
+    setSelectedType(type)
+  }
+
   const handleEdit = () => {
     setIsEditing(true)
     setIsCreating(false)
@@ -94,23 +156,7 @@ export default function BusinessTypeManagement({ initialBusinessTypes }: Busines
   const handleCancel = () => {
     setIsEditing(false)
     setIsCreating(false)
-    if (selectedType) {
-      setFormData({
-        name: selectedType.name,
-        description: selectedType.description || "",
-        subcategories: selectedType.subcategories?.length ? selectedType.subcategories : [""],
-        prompt: selectedType.prompt?.length
-          ? selectedType.prompt
-          : [
-              {
-                content: "",
-                version: 1,
-                model: "gpt-4o",
-                active: true,
-              },
-            ],
-      })
-    }
+    resetForm()
   }
 
   const handleSave = async () => {
@@ -123,19 +169,36 @@ export default function BusinessTypeManagement({ initialBusinessTypes }: Busines
       return
     }
 
+    // Validate subcategory names
+    for (const subcategory of formData.subcategories) {
+      if (!subcategory.name.trim()) {
+        toast({
+          title: "Validation Error",
+          description: "Subcategory names cannot be empty",
+          variant: "destructive",
+        })
+        return
+      }
+    }
+
     setIsSaving(true)
 
     try {
-      // Filter out empty subcategories
-      const filteredSubcategories = formData.subcategories.filter((sub) => sub.trim() !== "")
-
       // Filter out empty prompts
-      const filteredPrompts = formData.prompt.filter((prompt) => prompt.content.trim() !== "")
+      const filteredPrompts = formData.prompt.filter(prompt => prompt.content.trim() !== "")
+
+      // Filter out empty subcategory prompts
+      const filteredSubcategories = formData.subcategories
+        .filter(sub => sub.name.trim() !== "")
+        .map(sub => ({
+          ...sub,
+          prompt: sub.prompt.filter(p => p.content.trim() !== "")
+        }))
 
       const dataToSave = {
         name: formData.name.trim(),
         description: formData.description.trim(),
-        subcategories: filteredSubcategories,
+        subcategories: filteredSubcategories.map(sub => sub.name),
         prompt: filteredPrompts,
       }
 
@@ -144,13 +207,21 @@ export default function BusinessTypeManagement({ initialBusinessTypes }: Busines
       if (isCreating) {
         savedType = await createBusinessType(dataToSave)
         setBusinessTypes([...businessTypes, savedType])
+        setSelectedType(savedType)
         toast({
           title: "Success",
           description: "Business type created successfully",
         })
       } else if (selectedType) {
-        savedType = await updateBusinessType(selectedType._id, dataToSave)
-        setBusinessTypes(businessTypes.map((type) => (type._id === selectedType._id ? savedType : type)))
+        // For update, only send subcategory names as string[]
+        const updateData = {
+          ...dataToSave,
+          subcategories: filteredSubcategories.map(sub => sub.name),
+        }
+        savedType = await updateBusinessType(selectedType._id, updateData)
+        const updatedTypes = businessTypes.map((type) => (type._id === selectedType._id ? savedType : type))
+        setBusinessTypes(updatedTypes)
+        setSelectedType(savedType)
         toast({
           title: "Success",
           description: "Business type updated successfully",
@@ -159,9 +230,6 @@ export default function BusinessTypeManagement({ initialBusinessTypes }: Busines
 
       setIsEditing(false)
       setIsCreating(false)
-      if (isCreating) {
-        setSelectedType(savedType!)
-      }
     } catch (error) {
       toast({
         title: "Error",
@@ -171,6 +239,7 @@ export default function BusinessTypeManagement({ initialBusinessTypes }: Busines
     } finally {
       setIsSaving(false)
     }
+    router.push(`/configure-leads?refreshId=${new Date().getTime()}`)
   }
 
   const handleDelete = async () => {
@@ -182,7 +251,13 @@ export default function BusinessTypeManagement({ initialBusinessTypes }: Busines
       await deleteBusinessType(selectedType._id)
       const updatedTypes = businessTypes.filter((type) => type._id !== selectedType._id)
       setBusinessTypes(updatedTypes)
-      setSelectedType(updatedTypes.length > 0 ? updatedTypes[0] : null)
+      
+      if (updatedTypes.length > 0) {
+        setSelectedType(updatedTypes[0])
+      } else {
+        setSelectedType(null)
+      }
+      
       setIsEditing(false)
       setIsCreating(false)
 
@@ -204,7 +279,18 @@ export default function BusinessTypeManagement({ initialBusinessTypes }: Busines
   const addSubcategory = () => {
     setFormData({
       ...formData,
-      subcategories: [...formData.subcategories, ""],
+      subcategories: [
+        ...formData.subcategories,
+        {
+          name: "",
+          prompt: [{
+            content: "",
+            version: 1,
+            model: "gpt-4o",
+            active: true,
+          }]
+        }
+      ],
     })
   }
 
@@ -215,9 +301,52 @@ export default function BusinessTypeManagement({ initialBusinessTypes }: Busines
     })
   }
 
-  const updateSubcategory = (index: number, value: string) => {
+  const updateSubcategoryName = (index: number, value: string) => {
     const updated = [...formData.subcategories]
-    updated[index] = value
+    updated[index] = { ...updated[index], name: value }
+    setFormData({
+      ...formData,
+      subcategories: updated,
+    })
+  }
+
+  const addSubcategoryPrompt = (subcategoryIndex: number) => {
+    const updated = [...formData.subcategories]
+    updated[subcategoryIndex].prompt = [
+      ...updated[subcategoryIndex].prompt,
+      {
+        content: "",
+        version: updated[subcategoryIndex].prompt.length + 1,
+        model: "gpt-4o",
+        active: true,
+      }
+    ]
+    setFormData({
+      ...formData,
+      subcategories: updated,
+    })
+  }
+
+  const removeSubcategoryPrompt = (subcategoryIndex: number, promptIndex: number) => {
+    const updated = [...formData.subcategories]
+    updated[subcategoryIndex].prompt = updated[subcategoryIndex].prompt.filter((_, i) => i !== promptIndex)
+    setFormData({
+      ...formData,
+      subcategories: updated,
+    })
+  }
+
+  const updateSubcategoryPrompt = (
+    subcategoryIndex: number,
+    promptIndex: number,
+    field: keyof BusinessTypePrompt,
+    value: any
+  ) => {
+    const updated = [...formData.subcategories]
+    const prompt = { ...updated[subcategoryIndex].prompt[promptIndex] }
+    // @ts-ignore
+    prompt[field] = value
+    updated[subcategoryIndex].prompt[promptIndex] = prompt
     setFormData({
       ...formData,
       subcategories: updated,
@@ -257,8 +386,6 @@ export default function BusinessTypeManagement({ initialBusinessTypes }: Busines
 
   const isFormMode = isEditing || isCreating
 
-  console.log(businessTypes)
-
   return (
     <div className="flex gap-6 h-[calc(100vh-200px)]">
       {/* Left Column - Business Types List */}
@@ -273,24 +400,22 @@ export default function BusinessTypeManagement({ initialBusinessTypes }: Busines
           </div>
         </div>
         <div className="flex flex-col overflow-y-auto max-h-full">
-          {businessTypes.map((type,index) => (
+          {businessTypes.map((type, index) => (
             <button
               key={type._id || index}
               className={`p-4 text-left hover:bg-blue-50 transition-colors border-b ${
                 selectedType?._id === type._id ? "bg-blue-100 border-l-4 border-blue-600" : ""
               }`}
-              onClick={() => {
-                if (!isFormMode) {
-                  setSelectedType(type)
-                }
-              }}
+              onClick={() => handleSelectType(type)}
               disabled={isFormMode}
             >
               <div className="font-medium">{type.name}</div>
               <div className="text-xs text-gray-500 mt-1">
                 {type.subcategories?.length || 0} subcategories • {type.prompt?.length || 0} prompts
               </div>
-              <div className="text-xs text-gray-400 mt-1">{new Date(type.createdAt).toLocaleDateString()}</div>
+              <div className="text-xs text-gray-400 mt-1">
+                {type.createdAt ? new Date(type.createdAt).toLocaleDateString() : "No date"}
+              </div>
             </button>
           ))}
           {businessTypes.length === 0 && (
@@ -311,7 +436,7 @@ export default function BusinessTypeManagement({ initialBusinessTypes }: Busines
               <div className="flex justify-between items-start">
                 <div>
                   <CardTitle className="text-xl">
-                    {isCreating ? "Create New Business Type" : selectedType?.name}
+                    {isCreating ? "Create New Business Type" : selectedType?.name || "Unnamed Type"}
                   </CardTitle>
                   <CardDescription>
                     {isCreating
@@ -403,36 +528,158 @@ export default function BusinessTypeManagement({ initialBusinessTypes }: Busines
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  {formData.subcategories.map((subcategory, index) => (
-                    <div key={index} className="flex gap-2">
-                      <Input
-                        value={subcategory}
-                        onChange={(e) => updateSubcategory(index, e.target.value)}
-                        placeholder="Enter subcategory"
-                        disabled={!isFormMode}
-                        className={!isFormMode ? "bg-gray-50" : ""}
-                      />
-                      {isFormMode && formData.subcategories.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => removeSubcategory(index)}
-                          className="text-red-600 border-red-200 hover:bg-red-50"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
+                <div className="space-y-4">
+                  {formData.subcategories.map((subcategory, scIndex) => (
+                    <Card key={scIndex} className="p-4">
+                      <div className="space-y-4">
+                        <div className="flex gap-2">
+                          <Input
+                            value={subcategory.name}
+                            onChange={(e) => updateSubcategoryName(scIndex, e.target.value)}
+                            placeholder="Enter subcategory name"
+                            disabled={!isFormMode}
+                            className={!isFormMode ? "bg-gray-50" : ""}
+                          />
+                          {isFormMode && formData.subcategories.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => removeSubcategory(scIndex)}
+                              className="text-red-600 border-red-200 hover:bg-red-50"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+
+                        {/* Subcategory Prompts */}
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center">
+                            <Label>AI Prompts for this Subcategory</Label>
+                            {isFormMode && (
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => addSubcategoryPrompt(scIndex)}
+                              >
+                                <Plus className="h-4 w-4 mr-1" />
+                                Add Prompt
+                              </Button>
+                            )}
+                          </div>
+
+                          <div className="space-y-4">
+                            {subcategory.prompt.map((prompt, pIndex) => (
+                              <Card key={pIndex} className="p-4">
+                                <div className="space-y-4">
+                                  <div className="flex justify-between items-center">
+                                    <Label className="text-sm font-medium">Prompt {pIndex + 1}</Label>
+                                    <div className="flex items-center gap-2">
+                                      {isFormMode && (
+                                        <div className="flex items-center gap-2">
+                                          <Label htmlFor={`active-${scIndex}-${pIndex}`} className="text-sm">
+                                            Active
+                                          </Label>
+                                          <Switch
+                                            id={`active-${scIndex}-${pIndex}`}
+                                            checked={prompt.active}
+                                            onCheckedChange={(checked) => 
+                                              updateSubcategoryPrompt(scIndex, pIndex, "active", checked)
+                                            }
+                                          />
+                                        </div>
+                                      )}
+                                      {isFormMode && subcategory.prompt.length > 1 && (
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => removeSubcategoryPrompt(scIndex, pIndex)}
+                                          className="text-red-600 border-red-200 hover:bg-red-50"
+                                        >
+                                          <X className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <Label htmlFor={`model-${scIndex}-${pIndex}`}>Model</Label>
+                                      <Select
+                                        value={prompt.model}
+                                        onValueChange={(value) => 
+                                          updateSubcategoryPrompt(scIndex, pIndex, "model", value)
+                                        }
+                                        disabled={!isFormMode}
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Select model" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="gpt-4">GPT-4</SelectItem>
+                                          <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+
+                                    <div>
+                                      <Label htmlFor={`version-${scIndex}-${pIndex}`}>Version</Label>
+                                      <Input
+                                        id={`version-${scIndex}-${pIndex}`}
+                                        type="number"
+                                        value={prompt.version || 1}
+                                        onChange={(e) => 
+                                          updateSubcategoryPrompt(scIndex, pIndex, "version", Number.parseInt(e.target.value) || 1)
+                                        }
+                                        disabled={!isFormMode}
+                                        className={!isFormMode ? "bg-gray-50" : ""}
+                                        min={1}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <Label htmlFor={`content-${scIndex}-${pIndex}`}>Prompt Content</Label>
+                                    <Textarea
+                                      id={`content-${scIndex}-${pIndex}`}
+                                      value={prompt.content}
+                                      onChange={(e) => 
+                                        updateSubcategoryPrompt(scIndex, pIndex, "content", e.target.value)
+                                      }
+                                      placeholder="Enter the AI prompt content for this subcategory..."
+                                      disabled={!isFormMode}
+                                      className={!isFormMode ? "bg-gray-50" : ""}
+                                      rows={4}
+                                    />
+                                  </div>
+
+                                  {!isFormMode && (
+                                    <div className="flex items-center gap-4 text-sm text-gray-500">
+                                      <Badge variant={prompt.active ? "success" : "secondary"}>
+                                        {prompt.active ? "Active" : "Inactive"}
+                                      </Badge>
+                                      <span>Model: {prompt.model}</span>
+                                      <span>Version: {prompt.version || 1}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
                   ))}
                 </div>
 
-                {!isFormMode && selectedType?.subcategories && (
+                {!isFormMode && selectedType?.subcategories && selectedType.subcategories.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {selectedType.subcategories.map((sub, index) => (
                       <Badge key={index} variant="outline">
-                        {sub}
+                        {sub.name}
                       </Badge>
                     ))}
                   </div>
@@ -441,10 +688,10 @@ export default function BusinessTypeManagement({ initialBusinessTypes }: Busines
 
               <Separator />
 
-              {/* AI Prompts */}
+              {/* Business Type Prompts */}
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <Label>AI Prompts</Label>
+                  <Label>Business Type Prompts</Label>
                   {isFormMode && (
                     <Button type="button" variant="outline" size="sm" onClick={addPrompt}>
                       <Plus className="h-4 w-4 mr-1" />
@@ -495,7 +742,7 @@ export default function BusinessTypeManagement({ initialBusinessTypes }: Busines
                               disabled={!isFormMode}
                             >
                               <SelectTrigger>
-                                <SelectValue />
+                                <SelectValue placeholder="Select model" />
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="gpt-4">GPT-4</SelectItem>
