@@ -23,11 +23,15 @@ import {
   Clock,
   Shield,
   ShieldAlert,
+  Lightbulb,
+  BarChart,
+  ClipboardList,
+  Target,
 } from "lucide-react"
 import type { Business } from "@/lib/types"
 
 interface BusinessDetailsProps {
-  business: Business
+  business: any
 }
 
 export default function BusinessDetails({ business }: BusinessDetailsProps) {
@@ -92,10 +96,11 @@ export default function BusinessDetails({ business }: BusinessDetailsProps) {
       </div>
 
       <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-5 mb-8">
+        <TabsList className="grid grid-cols-6 mb-8">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="contact">Contact</TabsTrigger>
           <TabsTrigger value="people">People</TabsTrigger>
+          <TabsTrigger value="ai-insights">AI Insights</TabsTrigger>
           <TabsTrigger value="website">Website</TabsTrigger>
           <TabsTrigger value="reviews">Reviews</TabsTrigger>
         </TabsList>
@@ -245,11 +250,11 @@ export default function BusinessDetails({ business }: BusinessDetailsProps) {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {business.types.map((type, index) => (
+                    {business.types.map((type: string, index: number) => (
                     <Badge key={index} variant="outline">
                       {type}
                     </Badge>
-                  ))}
+                    ))}
                 </div>
               </CardContent>
             </Card>
@@ -329,7 +334,7 @@ export default function BusinessDetails({ business }: BusinessDetailsProps) {
                   <h3 className="text-lg font-medium mb-4">Email Addresses</h3>
                   {business.emails && business.emails.length > 0 ? (
                     <div className="space-y-3">
-                      {business.emails.map((email, index) => (
+                      {business.emails.map((email:any, index:number) => (
                         <div key={index} className="flex items-start">
                           <Mail className="h-5 w-5 mr-3 text-blue-600 mt-0.5" />
                           <div>
@@ -444,7 +449,7 @@ export default function BusinessDetails({ business }: BusinessDetailsProps) {
             <CardContent>
               {business.gptInsights?.["leadership/Managers/Administration"] && business.gptInsights["leadership/Managers/Administration"].length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {business.gptInsights["leadership/Managers/Administration"].map((person, index) => (
+                  {business.gptInsights["leadership/Managers/Administration"].map((person:any, index:number) => (
                     <div key={index} className="flex items-start">
                       <Avatar className="h-10 w-10 mr-3">
                         <AvatarFallback>{getInitials(person.name)}</AvatarFallback>
@@ -498,7 +503,7 @@ export default function BusinessDetails({ business }: BusinessDetailsProps) {
             <CardContent>
               {business.gptInsights?.employees && business.gptInsights.employees.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {business.gptInsights.employees.map((person, index) => (
+                  {business.gptInsights.employees.map((person:any, index:number) => (
                     <div key={index} className="flex items-start">
                       <Avatar className="h-10 w-10 mr-3">
                         <AvatarFallback>{getInitials(person.name)}</AvatarFallback>
@@ -540,7 +545,7 @@ export default function BusinessDetails({ business }: BusinessDetailsProps) {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {business.gptInsights.socialMedia.map((social, index) => (
+                  {business.gptInsights.socialMedia.map((social:any, index:number) => (
                     <a
                       key={index}
                       href={social.url}
@@ -581,38 +586,138 @@ export default function BusinessDetails({ business }: BusinessDetailsProps) {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
 
-          {/* Public Posts */}
-          {business.gptInsights?.["publicPosts/JobPosts"] && business.gptInsights["publicPosts/JobPosts"].length > 0 && (
+        {/* NEW AI Insights Tab */}
+        <TabsContent value="ai-insights" className="space-y-6">
+          {/* Marketing Intent Analysis */}
+          <Card>
+            <CardHeader className="flex flex-row items-start gap-3">
+              <div className="bg-blue-100 p-2 rounded-md">
+                <BarChart className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <CardTitle>Marketing Intent Analysis</CardTitle>
+                <CardDescription>AI-powered analysis of business growth signals</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {business.gptInsights?.marketing_intent_analysis ? (
+                <p className="text-gray-700">{business.gptInsights.marketing_intent_analysis}</p>
+              ) : (
+                <p className="text-gray-500">No marketing intent analysis available</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Marketing Opportunities */}
+          <Card>
+            <CardHeader className="flex flex-row items-start gap-3">
+              <div className="bg-green-100 p-2 rounded-md">
+                <Target className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <CardTitle>Marketing Opportunities</CardTitle>
+                <CardDescription>Potential growth areas identified by AI</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {business.gptInsights?.marketing_opportunities ? (
+                <p className="text-gray-700">{business.gptInsights.marketing_opportunities}</p>
+              ) : (
+                <p className="text-gray-500">No marketing opportunities identified</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Key Points */}
+          {business.gptInsights?.keyPoints && business.gptInsights.keyPoints.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Recent Public Posts</CardTitle>
+                <CardTitle>Key Insights</CardTitle>
+                <CardDescription>Critical observations about the business</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {business.gptInsights["publicPosts/JobPosts"].map((post, index) => (
+                <ul className="space-y-2 list-disc pl-5">
+                  {business.gptInsights?.keyPoints.map((point:any, index:number) => (
+                    <li key={index} className="text-gray-700">
+                      {point}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Approachable Fields */}
+          {business.gptInsights?.approachable_fields && business.gptInsights.approachable_fields.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Approachable Fields</CardTitle>
+                <CardDescription>Recommended marketing focus areas</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {business.gptInsights.approachable_fields.map((field:any, index:number) => (
                     <div key={index} className="border rounded-md p-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <p className="text-sm text-gray-500">{post.date}</p>
-                        {post.source && (
-                          <a
-                            href={post.source}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline text-sm flex items-center"
-                          >
-                            Source
-                            <ExternalLink className="h-3 w-3 ml-1" />
-                          </a>
-                        )}
+                      <div className="flex items-center gap-3 mb-2">
+                        <ClipboardList className="h-5 w-5 text-purple-600" />
+                        <h3 className="font-medium">{field.field}</h3>
                       </div>
-                      <p className="text-gray-700">{post.content}</p>
+                      <p className="text-gray-600 text-sm">{field.description}</p>
                     </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
           )}
+
+          {/* Strategy & Possibility */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Approach Strategy */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Approach Strategy</CardTitle>
+                <CardDescription>Recommended engagement plan</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {business.gptInsights?.approach_strategy ? (
+                  <p className="text-gray-700">{business.gptInsights.approach_strategy}</p>
+                ) : (
+                  <p className="text-gray-500">No strategy available</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Success Possibility */}
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Success Probability</CardTitle>
+                  {business.gptInsights?.possibility && (
+                    <span className="font-bold text-lg bg-blue-50 px-3 py-1 rounded-full">
+                      {business.gptInsights.possibility}%
+                    </span>
+                  )}
+                </div>
+                <CardDescription>AI-estimated likelihood of successful engagement</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {business.gptInsights?.possibility ? (
+                  <div className="space-y-4">
+                    <Progress value={parseInt(business.gptInsights.possibility)} className="h-3" />
+                    <div className="flex justify-between text-sm text-gray-500">
+                      <span>Low</span>
+                      <span>Medium</span>
+                      <span>High</span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-gray-500">No probability assessment available</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* Website Tab */}
@@ -830,7 +935,7 @@ export default function BusinessDetails({ business }: BusinessDetailsProps) {
             <CardContent>
               {business.reviews && business.reviews.length > 0 ? (
                 <div className="space-y-6">
-                  {business.reviews.map((review, index) => (
+                  {business.reviews.map((review:any, index:number) => (
                     <div key={index} className="border-b pb-6 last:border-0 last:pb-0">
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex items-center">
